@@ -32,8 +32,7 @@ using namespace std;
         int y;
         int pollutant = 0;
         bool hasBug;
-        int cellSugarLevel;
-        int sugarScapeGrowBack = 0;        
+        int cellSugarLevel;        
     };
     
     struct bug{
@@ -105,7 +104,7 @@ void printBugs(vector<cell> cellVector, vector<bug> bugVector, int cycles){
         cout << "  ||    ||  ";
 
         for(int i=1; i<gridSize; i++){
-            cout << "|" << cellVector[i + j*gridSize].sugar;
+            cout << "|" << cellVector[i + j*gridSize].cellSugarLevel;
         }
         cout << "|" << endl;   
         cout << "|" << endl;   
@@ -156,25 +155,32 @@ void moveBugs(vector<cell> cellVector, vector<bug> &bugVector){
     }while(a < bugVector.size());
 }
 
+//updates the lattice elementwise
 void updateLattice(vector<cell> &cellVector, vector<bug> bugVector){
     
     int a = 0;
     int i = 0;
     
     do{
-        int bugPosi = bugVector[a].x;
-        int bugPosj = bugVector[a].y;
-
-        int cellVectorPos = bugPosj*sqrt(cellVector.size()) + bugPosi;
-
+        
+        cellVector[a].cellSugarLevel = minSugar + rand()%(maxSugarGrowBack-minSugarGrowBack);
 
         a++;
 
-    }while(a < bugVector.size());
+    }while(a < cellVector.size());
 
 }
 
+//used to sort list of sight structs by sugar val
+//poss return to comparator to minimise distance
+bool compareInt(const glance &a, const glance &b)
+    {
+            return a.sugarVal < b.sugarVal;
+    }
+
+
 // calculates the travel required for each cycle
+    //this is a risky bit
 void calculateBugMove(vector<cell> &newCellVector, vector<cell> cellVector,
     vector<bug> &newBugVector, vector<bug> bugVector, int cellVectorPos){
         
@@ -197,23 +203,52 @@ void calculateBugMove(vector<cell> &newCellVector, vector<cell> cellVector,
             sightVector[b + 0].dist = b+1; 
 
             //in the -x direction
-            sightVector[b + 1].x = bugPosi-b-1;            
+            sightVector[b + 1].x = bugPosi-b-1;
+            sightVector[b + 1].y = bugPosj;                   
             sightVector[b + 1].sugarVal = cellVector[bugPosi - b - 1 + bugPosj*gridSize].cellSugarLevel;
             sightVector[b + 1].hasBug = newCellVector[bugPosi - b - 1 + bugPosj*gridSize].hasBug;
+            sightVector[b + 1].dist = b+1; 
+
 
             //in the +y direction
-            sightVector[b + 2].y = cellVector[bugPosi + (bugPosj + b + 1)*gridSize].y;
-            sightVector[b + 2].x = cellVector[bugPosi + (bugPosj + b + 1)*gridSize].x;
+            sightVector[b + 2].x = bugPosi;
+            sightVector[b + 2].y = bugPosj + b + 1;                     
+            sightVector[b + 2].sugarVal = cellVector[bugPosi + (bugPosj + b + 1)*gridSize].cellSugarLevel;
+            sightVector[b + 2].hasBug = newCellVector[bugPosi + (bugPosj + b + 1)*gridSize].hasBug;
+            sightVector[b + 2].dist = b+1; 
+
 
             //in the -y direction
-            sightVector[b + 3].y = cellVector[bugPosi + (bugPosj - b - 1)*gridSize].y;            
-            sightVector[b + 3].x = cellVector[bugPosi + bugPosj*gridSize].x;
+            sightVector[b + 3].x = bugPosi;
+            sightVector[b + 3].y = bugPosj - b - 1;               
+            sightVector[b + 3].sugarVal = cellVector[bugPosi + (bugPosj - b - 1)*gridSize].cellSugarLevel;            
+            sightVector[b + 3].hasBug = newCellVector[bugPosi + (bugPosj - b - 1)*gridSize].hasBug;
+            sightVector[b + 3].dist = b+1; 
 
             b++;
-        }while(b<bugVector[a].vision)
+        }while(b<bugVector[a].vision);
+
+        sort(sightVector.begin(), sightVector.end(), compareInt);
+            int c =0;
+            bool newPosChosen = false;
+
+            do{
+                if(sightVector[sightVector.length()-c].hasBug == false){
+                    //set bug in cell vector
+                    newBugVector[a].x = sightVector[sightVector.length()-c].x;
+                    newBugVector[a].y = sightVector[sightVector.length()-c].y;  
+                    newBugVector[a].agentSugarLevel = bugVector[a].agentSugarLevel + sightVector[sightVector.length()-c].sugarVal;                                     
+                    newCellVector[newBugVector[a].x + newBugVector[a].y*gridSize].cellSugarLevel == 0;
+                    newCellVector[newBugVector[a].x + newBugVector[a].y*gridSize].hasBug == true;
+                    newCellVector[newBugVector[a].x + newBugVector[a].y*gridSize].hasBug == true;                    
+                    newPosChosen = true;
+                }
+                c++;
+
+            }while(c < sightVector.length() && newPosChosen == false);
  
         newBugVector[a].xmove = newBugVector[a].x - bugVector[a].x;
-        newBugVector[a].ymove = newBugVector[a].y - bugVector[a].x;
+        newBugVector[a].ymove = newBugVector[a].y - bugVector[a].y;
 
         a++;
 
@@ -310,6 +345,8 @@ int main(){
     int maxMetabolism = 3;
     int minSugar = 5;
     int maxSugar = 25;
+    int minSugarGrowBack = 1;
+    int minSugarGrowBack = 5;
 
     srand (time(NULL));
 
